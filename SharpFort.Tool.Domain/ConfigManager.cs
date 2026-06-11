@@ -57,8 +57,8 @@ public class SharpFortConfig
         Repo = new RepoConfig
         {
             Host = "https://api.github.com",
-            Owner = "sunshang-hl",
-            RepoName = "yi-template",
+            Owner = "SharpFort",
+            RepoName = "SharpFort.Template",
             AccessToken = ""
         },
         Tool = new ToolConfig
