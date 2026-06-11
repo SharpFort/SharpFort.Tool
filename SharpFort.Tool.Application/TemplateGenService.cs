@@ -52,8 +52,16 @@ namespace SharpFort.Tool.Application
         /// <returns></returns>
         [HttpGet("template-gen/template")]
         public async Task<List<string>> GetAllTemplatesAsync()
+n        public async Task<Stream> PreviewTemplateAsync(string branch)
+        {
+            return await _templateGenManager.GetTemplateStreamForPreviewAsync(branch);
+        }
         {
             return await _templateGenManager.GetAllTemplatesAsync();
+n        public async Task<Stream> PreviewTemplateAsync(string branch)
+        {
+            return await _templateGenManager.GetTemplateStreamForPreviewAsync(branch);
+        }
         }
     }
 }

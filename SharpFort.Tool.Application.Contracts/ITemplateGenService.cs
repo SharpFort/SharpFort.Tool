@@ -8,5 +8,6 @@ namespace SharpFort.Tool.Application.Contracts
     {
         Task<byte[]> CreateModuleAsync(TemplateGenCreateInputDto moduleCreateInputDto);
         Task<List<string>> GetAllTemplatesAsync();
+        Task<Stream> PreviewTemplateAsync(string branch);
     }
 }

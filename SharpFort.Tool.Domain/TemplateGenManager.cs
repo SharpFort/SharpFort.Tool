@@ -133,6 +133,16 @@ public class TemplateGenManager : ITransientDependency
         return tempFilePath;
     }
 
+    /// <summary>
+    /// 获取模板流用于预览（使用缓存）
+    /// </summary>
+    public async Task<Stream> GetTemplateStreamForPreviewAsync(string branch)
+    {
+        if (!await _repoManager.IsExsitBranchAsync(branch))
+            throw new UserFriendlyException($"分支 [{branch}] 不存在");
+        return await GetTemplateStreamAsync(branch);
+    }
+
     public async Task<List<string>> GetAllTemplatesAsync()
     {
         var refs = await _repoManager.GetAllBranchAsync();
