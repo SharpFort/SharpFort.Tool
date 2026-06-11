@@ -33,7 +33,7 @@
 
 
 	<ItemGroup>
-	  <ProjectReference Include="..\SharpFort.Tool.HttpApi.Client\SharpFort.Tool.HttpApi.Client.csproj" />
+	  <ProjectReference Include="..\SharpFort.Tool.Application\SharpFort.Tool.Application.csproj" />
 	</ItemGroup>
 
 
