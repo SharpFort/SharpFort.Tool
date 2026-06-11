@@ -54,10 +54,11 @@ sharpfort new list
 | 命令 | 说明 | 示例 |
 |------|------|------|
 | `sharpfort add-module <name>` | 添加已有模块到 .sln 解决方案 | `sharpfort add-module MyMod -s ../` |
-| `sharpfort clone` | 克隆 SharpFort 框架源码 | `sharpfort clone` |
+| `sharpfort clone` | 克隆 SharpFort.Net 框架源码 | `sharpfort clone` |
 | `sharpfort clear` | 递归清理 bin/obj 目录 | `sharpfort clear` |
 | `sharpfort -h` | 查看帮助 | `sharpfort -h` |
 | `sharpfort -v` | 查看版本 | `sharpfort -v` |
+| `dotnet tool update -g sharpfort` | 更新工具到最新版本 | `dotnet tool update -g sharpfort` |
 
 ### 选项参考
 
@@ -164,7 +165,7 @@ SharpFort.Tool/                    ← CLI 入口 + 命令
 
 ```bash
 # 克隆
-git clone https://github.com/SharpFort/SharpFort.Tool.git
+git clone https://github.com/SharpFort/SharpFort.Net.git
 cd SharpFort.Tool
 
 # 构建
