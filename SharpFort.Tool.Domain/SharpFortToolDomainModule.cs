@@ -1,4 +1,3 @@
-﻿using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using SharpFort.Tool.Domain.Shared;
 using SharpFort.Tool.Domain.Shared.Options;
@@ -10,15 +9,22 @@ namespace SharpFort.Tool.Domain
     {
         public override void ConfigureServices(ServiceConfigurationContext context)
         {
-            var configuration = context.Services.GetConfiguration();
-            Configure<ToolOptions>(configuration.GetSection("ToolOptions"));
-            var toolOptions = new ToolOptions();
-            configuration.GetSection("ToolOptions").Bind(toolOptions);
-            if (!Directory.Exists(toolOptions.TempDirPath))
+            // 从统一配置文件读取 ToolOptions
+            var configManager = new ConfigManager();
+            var config = configManager.GetConfig();
+
+            var toolOptions = new ToolOptions
             {
-                Directory.CreateDirectory(toolOptions.TempDirPath);
-            }
-            
+                TempDirPath = config.Tool.TempDirPath
+            };
+
+            Configure<ToolOptions>(toolOptions);
+
+            // 确保目录存在
+            if (!Directory.Exists(config.Tool.TempDirPath))
+                Directory.CreateDirectory(config.Tool.TempDirPath);
+            if (!Directory.Exists(config.Tool.CacheDirPath))
+                Directory.CreateDirectory(config.Tool.CacheDirPath);
         }
     }
 }

@@ -36,9 +36,6 @@ class Program
                 {
                     await service.AddApplicationAsync<SharpFortToolModule>();
                 })
-                //.ConfigureAppConfiguration(configurationBuilder =>
-                //{
-                //    configurationBuilder.AddJsonFile("appsettings.json");
                 //})
                 .UseAutofac()
                 .Build();
