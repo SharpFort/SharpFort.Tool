@@ -29,10 +29,16 @@ namespace SharpFort.Tool.Commands
             // list 子命令
             app.Command("list", listApp =>
             {
+                listApp.HelpOption("-h|--help");
                 var detailOpt = listApp.Option("-d|--detail", "详细信息", CommandOptionType.NoValue);
                 var branchOpt = listApp.Option("-b|--branch", "预览指定分支", CommandOptionType.SingleValue);
+                var refreshOpt = listApp.Option("--refresh", "强制刷新所有缓存（重新下载）", CommandOptionType.NoValue);
+                var clearOpt = listApp.Option("--clear", "清空所有缓存", CommandOptionType.NoValue);
+
                 listApp.OnExecute(() =>
                 {
+                    if (refreshOpt.HasValue()) { RefreshCache(); return 0; }
+                    if (clearOpt.HasValue()) { ClearCache(); return 0; }
                     if (branchOpt.HasValue()) { PreviewTemplate(branchOpt.Value()).Wait(); return 0; }
                     ListTemplates(detailOpt.HasValue());
                     return 0;
@@ -67,10 +73,10 @@ namespace SharpFort.Tool.Commands
         private (string name, string soure, string path, bool csf, bool noCache)? RunInteractive()
         {
             Console.WriteLine();
-            Console.WriteLine("=== SharpFort 模块生成向导 ===
-");
+            Console.WriteLine("=== SharpFort 模块生成向导 ===");
+            Console.WriteLine();
 
-            var templates = _templateGenService.GetAllTemplatesAsync().Result;
+            var templates = _templateGenService.GetAllTemplatesAsync().GetAwaiter().GetResult();
             if (templates.Count == 0)
             {
                 Console.WriteLine("未找到可用模板，请先 fork 模板仓库并配置 ~/.sharpfort/config.json");
@@ -84,8 +90,7 @@ namespace SharpFort.Tool.Commands
             string? soure = null;
             while (soure == null)
             {
-                Console.Write($"
-输入序号 [1-{templates.Count}] (默认 1): ");
+                Console.Write($"输入序号 [1-{templates.Count}] (默认 1): ");
                 var input = Console.ReadLine();
                 if (string.IsNullOrEmpty(input)) soure = templates[0];
                 else if (int.TryParse(input, out int idx) && idx >= 1 && idx <= templates.Count)
@@ -109,14 +114,13 @@ namespace SharpFort.Tool.Commands
             var csfInput = Console.ReadLine()?.Trim().ToLower();
             var csf = csfInput == "y" || csfInput == "yes";
 
-            Console.WriteLine($"
-即将创建:
-  模板:   {soure}
-  名称:   {moduleName}
-  路径:   {path}
-  文件夹: {(csf ? "是" : "否")}");
-            Console.Write("
-确认? [Y/n]: ");
+            Console.WriteLine();
+            Console.WriteLine($"即将创建:");
+            Console.WriteLine($"  模板:   {soure}");
+            Console.WriteLine($"  名称:   {moduleName}");
+            Console.WriteLine($"  路径:   {path}");
+            Console.WriteLine($"  文件夹: {(csf ? "是" : "否")}");
+            Console.Write("确认? [Y/n]: ");
             var confirm = Console.ReadLine()?.Trim().ToLower();
             if (confirm == "n" || confirm == "no") { Console.WriteLine("已取消"); return null; }
 
@@ -126,12 +130,11 @@ namespace SharpFort.Tool.Commands
         // ===== 生成模块 =====
         private int GenerateModule(string moduleName, string soure, string path, bool csf, bool noCache)
         {
-            Console.WriteLine($"
-正在从 [{soure}] 模板生成 [{moduleName}]...");
+            Console.WriteLine($"正在从 [{soure}] 模板生成 [{moduleName}]...");
 
             byte[] fileByteArray = _templateGenService.CreateModuleAsync(
                 new TemplateGenCreateInputDto { Name = moduleName, ModuleSoure = soure, NoCache = noCache }
-            ).Result;
+            ).GetAwaiter().GetResult();
 
             var id = Guid.NewGuid().ToString("N");
             var zipPath = Path.Combine(path, $"{id}.zip");
@@ -159,12 +162,12 @@ namespace SharpFort.Tool.Commands
         private void ListTemplates(bool detail)
         {
             Console.WriteLine("正在获取模板列表...");
-            var list = _templateGenService.GetAllTemplatesAsync().Result;
+            var list = _templateGenService.GetAllTemplatesAsync().GetAwaiter().GetResult();
 
             if (detail)
             {
-                Console.WriteLine("
-  模板名称           说明");
+                Console.WriteLine();
+                Console.WriteLine("  模板名称           说明");
                 Console.WriteLine("  ------------------  ---------------------");
                 foreach (var name in list)
                 {
@@ -174,25 +177,59 @@ namespace SharpFort.Tool.Commands
             }
             else
             {
-                Console.WriteLine("
-全部模板:");
+                Console.WriteLine();
+                Console.WriteLine("全部模板:");
                 Console.WriteLine("----------------");
-                Console.WriteLine(list.JoinAsString("
-"));
+                Console.WriteLine(string.Join(Environment.NewLine, list));
             }
-            Console.WriteLine($"
-共 {list.Count} 个模板");
+            Console.WriteLine();
+            Console.WriteLine($"共 {list.Count} 个模板");
+
+            // 显示缓存统计
+            var (zipCount, totalBytes) = _templateGenService.GetCacheStats();
+            if (zipCount > 0)
+            {
+                var sizeMb = totalBytes / (1024.0 * 1024.0);
+                Console.WriteLine($"  缓存: {zipCount} 个模板 ({sizeMb:F1} MB)");
+            }
+            Console.WriteLine();
             Console.WriteLine("  sharpfort new                  — 交互式创建");
             Console.WriteLine("  sharpfort new list -d          — 详细信息");
             Console.WriteLine("  sharpfort new list -b <分支名> — 预览模板结构");
+            Console.WriteLine("  sharpfort new list --refresh   — 刷新缓存");
+            Console.WriteLine("  sharpfort new list --clear     — 清空缓存");
+        }
+
+        // ===== 缓存刷新 =====
+        private void RefreshCache()
+        {
+            Console.WriteLine("正在刷新所有模板缓存...");
+            Console.WriteLine();
+            var count = _templateGenService.RefreshCacheAsync().GetAwaiter().GetResult();
+            Console.WriteLine();
+            Console.WriteLine($"刷新完成，共 {count} 个模板已更新");
+        }
+
+        // ===== 缓存清空 =====
+        private void ClearCache()
+        {
+            var (zipCount, metaCount, totalBytes) = _templateGenService.ClearCache();
+            if (zipCount == 0 && metaCount == 0)
+            {
+                Console.WriteLine("缓存目录为空，无需清理");
+                return;
+            }
+
+            var sizeMb = totalBytes / (1024.0 * 1024.0);
+            Console.WriteLine($"已清空缓存: {zipCount} 个模板 + {metaCount} 个元数据 ({sizeMb:F1} MB)");
+            Console.WriteLine("下次使用 `sharpfort new` 时将自动重新下载");
         }
 
         // ===== 模板预览 =====
         private async Task PreviewTemplate(string branch)
         {
-            Console.WriteLine($"
-正在获取模板 [{branch}] 的结构...
-");
+            Console.WriteLine($"正在获取模板 [{branch}] 的结构...");
+            Console.WriteLine();
             var stream = await _templateGenService.PreviewTemplateAsync(branch);
 
             using var archive = new ZipArchive(stream);
@@ -202,8 +239,8 @@ namespace SharpFort.Tool.Commands
 
             var root = entries.FirstOrDefault()?.FullName.Split('/')[0] ?? "";
 
-            Console.WriteLine($"模板: {branch}
-文件数: {entries.Count}");
+            Console.WriteLine($"模板: {branch}");
+            Console.WriteLine($"文件数: {entries.Count}");
             Console.WriteLine(new string('-', 50));
 
             foreach (var entry in entries)
@@ -222,10 +259,9 @@ namespace SharpFort.Tool.Commands
             {
                 Console.WriteLine(new string('-', 50));
                 using var reader = new StreamReader(readme.Open());
-                var lines = reader.ReadToEnd().Split('
-').Take(20);
-                Console.WriteLine(string.Join("
-", lines));
+                var content = reader.ReadToEnd();
+                var lines = content.Split('\n').Take(20);
+                Console.WriteLine(string.Join(Environment.NewLine, lines));
                 if (reader.BaseStream.Length > lines.Sum(l => l.Length + 1))
                     Console.WriteLine("...(更多内容请在模板仓库查看)");
             }

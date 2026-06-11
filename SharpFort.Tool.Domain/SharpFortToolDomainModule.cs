@@ -13,12 +13,10 @@ namespace SharpFort.Tool.Domain
             var configManager = new ConfigManager();
             var config = configManager.GetConfig();
 
-            var toolOptions = new ToolOptions
+            Configure<ToolOptions>(options =>
             {
-                TempDirPath = config.Tool.TempDirPath
-            };
-
-            Configure<ToolOptions>(toolOptions);
+                options.TempDirPath = config.Tool.TempDirPath;
+            });
 
             // 确保目录存在
             if (!Directory.Exists(config.Tool.TempDirPath))

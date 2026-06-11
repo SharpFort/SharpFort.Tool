@@ -1,18 +1,11 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Diagnostics;
-using System.Linq;
-using System.Runtime.InteropServices;
-using System.Text;
-using System.Threading.Tasks;
-using Microsoft.Extensions.CommandLineUtils;
+﻿using Microsoft.Extensions.CommandLineUtils;
 
 namespace SharpFort.Tool.Commands
 {
     public class AddModuleCommand : ICommand
     {
         public string Command => "add-module";
-        public string? Description => "将内容添加到当前解决方案` yi-abp add-module <moduleName> [-p <path>] [-s <solution>] ";
+        public string? Description => "将内容添加到当前解决方案` sharpfort add-module <moduleName> [-p <path>] [-s <solution>] ";
         public void CommandLineApplication(CommandLineApplication application)
         {
             application.HelpOption("-h|--help");
@@ -24,7 +17,7 @@ namespace SharpFort.Tool.Commands
                 var moduleName = moduleNameArgument.Value;
   
                 //模块路径默认按小写规则，默认在模块路径下一层
-                var modulePath =moduleName.ToLower().Replace(".", "-");
+                var modulePath = moduleName.ToLower().Replace(".", "-");
                 if (modulePathOption.HasValue())
                 {
                     modulePath = modulePathOption.Value();
@@ -45,7 +38,9 @@ namespace SharpFort.Tool.Commands
                 CheckPathExist(paths);
 
                 var cmdCommands = dotnetSlnCommandPart.Select(x => $"dotnet sln \"{slnPath}\" add \"{Path.Combine(modulePath, $"{moduleName}.{x}")}\"").ToArray();
-                StartCmd(cmdCommands);
+                var exitCode = ProcessRunner.Run(cmdCommands);
+                if (exitCode != 0)
+                    throw new UserFriendlyException($"添加模块到解决方案失败，退出码: {exitCode}");
                 
                 Console.WriteLine("恭喜~模块添加成功！");
                 return 0;
@@ -56,7 +51,6 @@ namespace SharpFort.Tool.Commands
         /// <summary>
         /// 获取一个sln解决方案，多个将报错
         /// </summary>
-        /// <returns></returns>
         private string CheckFirstSlnPath(string slnPath)
         {
             string[] slnFiles = Directory.GetFiles(slnPath, "*.sln");
@@ -72,51 +66,9 @@ namespace SharpFort.Tool.Commands
             return slnFiles[0];
         }
 
-
-        /// <summary>
-        /// 执行cmd命令
-        /// </summary>
-        /// <param name="cmdCommands"></param>
-        private void StartCmd(params string[] cmdCommands)
-        {
-            ProcessStartInfo psi = new ProcessStartInfo
-            {
-                RedirectStandardInput = true,
-                RedirectStandardOutput = true,
-                RedirectStandardError = true,
-                CreateNoWindow = true,
-                UseShellExecute = false
-            };
-            // 判断操作系统
-            if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
-            {
-                psi.FileName = "cmd.exe";
-                psi.Arguments = $"/c chcp 65001&{string.Join("&", cmdCommands)}";
-            }
-            else if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX) || RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
-            {
-                psi.FileName = "/bin/bash";
-                psi.Arguments = $"-c \"{string.Join("; ", cmdCommands)}\"";
-            }
-            
-            Process proc = new Process
-            {
-                StartInfo = psi
-            };
-
-            proc.Start();
-            string output = proc.StandardOutput.ReadToEnd();
-            Console.WriteLine(output);
-
-            proc.WaitForExit();
-        }
-
-
         /// <summary>
         /// 检查路径
         /// </summary>
-        /// <param name="paths"></param>
-        /// <exception cref="UserFriendlyException"></exception>
         private void CheckPathExist(string[] paths)
         {
             foreach (string path in paths)
@@ -127,7 +79,5 @@ namespace SharpFort.Tool.Commands
                 }
             }
         }
-
-
     }
 }

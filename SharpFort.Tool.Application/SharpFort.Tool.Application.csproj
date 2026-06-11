@@ -1,14 +1,11 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
-	<Import Project="..\..\common.props" />
+	<Import Project="..\common.props" />
   <PropertyGroup>
-    <TargetFramework>net8.0</TargetFramework>
-    <ImplicitUsings>enable</ImplicitUsings>
-    <Nullable>enable</Nullable>
   </PropertyGroup>
   <ItemGroup>
     <ProjectReference Include="..\SharpFort.Tool.Application.Contracts\SharpFort.Tool.Application.Contracts.csproj" />
     <ProjectReference Include="..\SharpFort.Tool.Domain\SharpFort.Tool.Domain.csproj" />
-	  <ProjectReference Include="..\..\framework\Yi.Framework.Ddd.Application\Yi.Framework.Ddd.Application.csproj" />
+    <PackageReference Include="Volo.Abp.Ddd.Application" Version="$(AbpVersion)" />
+    <PackageReference Include="Mapster" Version="10.0.0" />
   </ItemGroup>
-
 </Project>

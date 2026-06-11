@@ -9,11 +9,8 @@ namespace SharpFort.Tool.Commands
 {
     public class ClearCommand : ICommand
     {
-        public List<string> CommandStrs => ["clear"];
-      
-
         public string Command => "clear";
-        public string? Description => "清除当前目录及子目录下的obj、bin文件夹` yi-abp clear `";
+        public string? Description => "清除当前目录及子目录下的obj、bin文件夹` sharpfort clear `";
 
         public void CommandLineApplication(CommandLineApplication application)
         {

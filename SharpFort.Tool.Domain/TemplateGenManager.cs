@@ -11,12 +11,15 @@ public class TemplateGenManager : ITransientDependency
 {
     private readonly ToolOptions _toolOptions;
     private readonly TemplateRepoManager _repoManager;
+    private readonly ConfigManager _configManager;
 
     public TemplateGenManager(
         IOptionsMonitor<ToolOptions> toolOptions,
-        TemplateRepoManager repoManager)
+        TemplateRepoManager repoManager,
+        ConfigManager configManager)
     {
         _repoManager = repoManager;
+        _configManager = configManager;
         _toolOptions = toolOptions.CurrentValue;
     }
 
@@ -24,8 +27,7 @@ public class TemplateGenManager : ITransientDependency
 
     private string GetCacheDir()
     {
-        var config = new ConfigManager().GetConfig();
-        return config.Tool.CacheDirPath;
+        return _configManager.GetConfig().Tool.CacheDirPath;
     }
 
     private string GetCachePath(string branch) =>
@@ -97,7 +99,7 @@ public class TemplateGenManager : ITransientDependency
 
     public async Task<string> CreateTemplateAsync(TemplateGenCreateDto input)
     {
-        if (!await _repoManager.IsExsitBranchAsync(input.GiteeRef))
+        if (!await _repoManager.BranchExistsAsync(input.GiteeRef))
             throw new UserFriendlyException($"分支未找到 [{input.GiteeRef}]，请检查分支是否存在");
 
         if (string.IsNullOrEmpty(_toolOptions.TempDirPath))
@@ -138,7 +140,7 @@ public class TemplateGenManager : ITransientDependency
     /// </summary>
     public async Task<Stream> GetTemplateStreamForPreviewAsync(string branch)
     {
-        if (!await _repoManager.IsExsitBranchAsync(branch))
+        if (!await _repoManager.BranchExistsAsync(branch))
             throw new UserFriendlyException($"分支 [{branch}] 不存在");
         return await GetTemplateStreamAsync(branch);
     }
@@ -149,6 +151,74 @@ public class TemplateGenManager : ITransientDependency
         refs.Remove("master");
         refs.Remove("main");
         return refs;
+    }
+
+    // ==================== 缓存管理 ====================
+
+    /// <summary>
+    /// 清空所有缓存文件
+    /// </summary>
+    public (int zipCount, int metaCount, long totalBytes) ClearCache()
+    {
+        var cacheDir = GetCacheDir();
+        if (!Directory.Exists(cacheDir))
+            return (0, 0, 0);
+
+        var zipFiles = Directory.GetFiles(cacheDir, "*.zip");
+        var metaFiles = Directory.GetFiles(cacheDir, "*.meta.json");
+        var totalBytes = zipFiles.Sum(f => new FileInfo(f).Length);
+
+        foreach (var f in zipFiles) File.Delete(f);
+        foreach (var f in metaFiles) File.Delete(f);
+
+        return (zipFiles.Length, metaFiles.Length, totalBytes);
+    }
+
+    /// <summary>
+    /// 刷新所有缓存（删除旧缓存，下次使用时重新下载）
+    /// </summary>
+    public async Task<int> RefreshCacheAsync()
+    {
+        var branches = await _repoManager.GetAllBranchAsync();
+        branches.Remove("master");
+        branches.Remove("main");
+
+        int refreshed = 0;
+        foreach (var branch in branches)
+        {
+            var cachePath = GetCachePath(branch);
+            // 删除旧缓存和元数据
+            if (File.Exists(cachePath)) File.Delete(cachePath);
+            var metaPath = GetMetaPath(branch);
+            if (File.Exists(metaPath)) File.Delete(metaPath);
+
+            // 重新下载
+            try
+            {
+                using var stream = await GetTemplateStreamAsync(branch, noCache: true);
+                refreshed++;
+                Console.WriteLine($"  [OK] {branch}");
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"  [FAIL] {branch}: {ex.Message}");
+            }
+        }
+        return refreshed;
+    }
+
+    /// <summary>
+    /// 获取缓存统计信息
+    /// </summary>
+    public (int zipCount, long totalBytes) GetCacheStats()
+    {
+        var cacheDir = GetCacheDir();
+        if (!Directory.Exists(cacheDir))
+            return (0, 0);
+
+        var zipFiles = Directory.GetFiles(cacheDir, "*.zip");
+        var totalBytes = zipFiles.Sum(f => new FileInfo(f).Length);
+        return (zipFiles.Length, totalBytes);
     }
 
     // ==================== 内容替换 ====================

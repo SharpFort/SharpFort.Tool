@@ -1,10 +1,11 @@
-using System.Diagnostics;
-using System.Runtime.InteropServices;
 using Microsoft.Extensions.CommandLineUtils;
 using SharpFort.Tool.Domain;
 
 namespace SharpFort.Tool.Commands
 {
+    /// <summary>
+    /// clone 命令 — 克隆 SharpFort.Net 框架，支持 GitHub/Gitee 双源自动切换
+    /// </summary>
     public class CloneCommand : ICommand
     {
         private readonly ConfigManager _configManager;
@@ -15,44 +16,41 @@ namespace SharpFort.Tool.Commands
         }
 
         public string Command => "clone";
-        public string? Description => "克隆 SharpFort.Net 框架源代码，需依赖 git";
+        public string? Description => "克隆 SharpFort.Net 框架源代码，支持 GitHub/Gitee 双源自动切换";
 
         public void CommandLineApplication(CommandLineApplication application)
         {
+            application.HelpOption("-h|--help");
+
             application.OnExecute(() =>
             {
-                var cloneAddress = _configManager.GetConfig().CloneAddress;
-                Console.WriteLine($"正在克隆 {cloneAddress}，请耐心等待...");
-                StartCmd($"git clone {cloneAddress}");
+                var cloneConfig = _configManager.GetConfig().Clone;
+
+                Console.WriteLine($"正在克隆 {cloneConfig.Primary}，请耐心等待...");
+                var exitCode = ProcessRunner.Run($"git clone {cloneConfig.Primary}");
+
+                if (exitCode != 0)
+                {
+                    Console.WriteLine($"  主源克隆失败，尝试备用源: {cloneConfig.Fallback}");
+                    exitCode = ProcessRunner.Run($"git clone {cloneConfig.Fallback}");
+
+                    if (exitCode != 0)
+                    {
+                        Console.WriteLine("  备用源也失败，请检查网络或手动执行:");
+                        Console.WriteLine($"    git clone {cloneConfig.Primary}");
+                        Console.WriteLine($"    git clone {cloneConfig.Fallback}");
+                        throw new UserFriendlyException("所有源均克隆失败");
+                    }
+
+                    Console.WriteLine("克隆完成！（来自备用源）");
+                }
+                else
+                {
+                    Console.WriteLine("克隆完成！");
+                }
+
                 return 0;
             });
-        }
-
-        private void StartCmd(params string[] cmdCommands)
-        {
-            ProcessStartInfo psi = new ProcessStartInfo
-            {
-                RedirectStandardInput = true,
-                RedirectStandardOutput = true,
-                RedirectStandardError = true,
-                CreateNoWindow = true,
-                UseShellExecute = false
-            };
-            if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
-            {
-                psi.FileName = "cmd.exe";
-                psi.Arguments = $"/c chcp 65001&{string.Join("&", cmdCommands)}";
-            }
-            else
-            {
-                psi.FileName = "/bin/bash";
-                psi.Arguments = $"-c \"{string.Join("; ", cmdCommands)}\"";
-            }
-            Process proc = new Process { StartInfo = psi };
-            proc.Start();
-            string output = proc.StandardOutput.ReadToEnd();
-            Console.WriteLine(output);
-            proc.WaitForExit();
         }
     }
 }

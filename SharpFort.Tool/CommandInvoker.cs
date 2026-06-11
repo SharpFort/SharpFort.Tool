@@ -1,12 +1,6 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Reflection;
-using System.Text;
-using System.Threading.Tasks;
+﻿using System.Reflection;
 using Microsoft.Extensions.CommandLineUtils;
 using Volo.Abp.DependencyInjection;
-using static System.Runtime.InteropServices.JavaScript.JSType;
 
 namespace SharpFort.Tool
 {
@@ -32,16 +26,17 @@ namespace SharpFort.Tool
                 {
                     Name = command.Command,
                     Parent = Application,
-                    Description =command.Description
+                    Description = command.Description
                 };
                 Application.Commands.Add(childrenCommandLineApplication);
                 command.CommandLineApplication(childrenCommandLineApplication);
             }
         }
 
-        public async Task InvokerAsync(string[] args)
+        public Task InvokerAsync(string[] args)
         {
             Application.Execute(args);
+            return Task.CompletedTask;
         }
     }
 }

@@ -5,18 +5,15 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using Mapster;
-using Microsoft.AspNetCore.Mvc;
-using Volo.Abp.Application.Services;
 using Volo.Abp.DependencyInjection;
 using SharpFort.Tool.Application.Contracts;
 using SharpFort.Tool.Application.Contracts.Dtos;
 using SharpFort.Tool.Domain;
 using SharpFort.Tool.Domain.Shared.Dtos;
-using Yi.Framework.Core.Helper;
 
 namespace SharpFort.Tool.Application
 {
-    public class TemplateGenService : ApplicationService, ITemplateGenService
+    public class TemplateGenService : ITemplateGenService, ITransientDependency
     {
         private readonly TemplateGenManager _templateGenManager;
 
@@ -28,40 +25,57 @@ namespace SharpFort.Tool.Application
         /// <summary>
         /// 下载模块文件
         /// </summary>
-        /// <returns></returns>
         public async Task<byte[]> CreateModuleAsync(TemplateGenCreateInputDto moduleCreateInputDto)
         {
             moduleCreateInputDto.SetNameReplace();
 
-            //模块类型，就是分支小写
+            // 模块类型，就是分支小写
             var input = moduleCreateInputDto.Adapt<TemplateGenCreateDto>();
             input.SetTemplateGiteeRef(moduleCreateInputDto.ModuleSoure);
 
             var filePath = await _templateGenManager.CreateTemplateAsync(input);
 
-            ////考虑从路径中获取
-            //var fileContentType = MimeHelper.GetMimeMapping(Path.GetFileName(filePath));
-            //设置附件下载，下载名称
             return await File.ReadAllBytesAsync(filePath);
         }
-
 
         /// <summary>
         /// 获取全部模板列表
         /// </summary>
-        /// <returns></returns>
-        [HttpGet("template-gen/template")]
         public async Task<List<string>> GetAllTemplatesAsync()
-n        public async Task<Stream> PreviewTemplateAsync(string branch)
-        {
-            return await _templateGenManager.GetTemplateStreamForPreviewAsync(branch);
-        }
         {
             return await _templateGenManager.GetAllTemplatesAsync();
-n        public async Task<Stream> PreviewTemplateAsync(string branch)
+        }
+
+        /// <summary>
+        /// 预览模板结构
+        /// </summary>
+        public async Task<Stream> PreviewTemplateAsync(string branch)
         {
             return await _templateGenManager.GetTemplateStreamForPreviewAsync(branch);
         }
+
+        /// <summary>
+        /// 清空所有缓存
+        /// </summary>
+        public (int zipCount, int metaCount, long totalBytes) ClearCache()
+        {
+            return _templateGenManager.ClearCache();
+        }
+
+        /// <summary>
+        /// 刷新所有缓存（重新下载）
+        /// </summary>
+        public async Task<int> RefreshCacheAsync()
+        {
+            return await _templateGenManager.RefreshCacheAsync();
+        }
+
+        /// <summary>
+        /// 获取缓存统计信息
+        /// </summary>
+        public (int zipCount, long totalBytes) GetCacheStats()
+        {
+            return _templateGenManager.GetCacheStats();
         }
     }
 }
