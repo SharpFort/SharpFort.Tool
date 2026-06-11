@@ -1,23 +1,11 @@
-﻿using Microsoft.Extensions.DependencyInjection;
-using Volo.Abp.Http.Client;
-using SharpFort.Tool.HttpApi.Client;
+using SharpFort.Tool.Application;
 
 namespace SharpFort.Tool
 {
-    [DependsOn(typeof(SharpFortToolHttpApiClientModule)
-        )]
+    [DependsOn(typeof(SharpFortToolApplicationModule))]
     public class SharpFortToolModule : AbpModule
     {
-
-        public override void PostConfigureServices(ServiceConfigurationContext context)
-        {
-           // var configuration = context.Services.GetConfiguration();
-            Configure<AbpRemoteServiceOptions>(options =>
-            {
-                options.RemoteServices.Default =
-                     new RemoteServiceConfiguration("https://ccnetcore.com:19009");
-                   // new RemoteServiceConfiguration("http://localhost:19002");
-            });
-        }
+        // 自包含模式：不再需要远程服务配置
+        // PostConfigureServices 已移除
     }
 }

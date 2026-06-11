@@ -73,7 +73,7 @@ namespace SharpFort.Tool.Commands
                     if (!Directory.Exists(path))
                     {
                         Directory.CreateDirectory(path);
-                        return 0;
+                        // 继续执行模板生成（已修复 Bug）
                     }
                     
                 }

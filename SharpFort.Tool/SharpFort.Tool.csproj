@@ -5,15 +5,15 @@
     <TargetFramework>net8.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
-    <Version>2.0.5</Version>
-    <Authors>橙子老哥</Authors>
-    <Description>yi-framework框架配套工具</Description>
+    <Version>1.0.0</Version>
+    <Authors>SharpFort</Authors>
+    <Description>SharpFort 框架配套 CLI 脚手架工具</Description>
     <PackageProjectUrl>https://ccnetcore.com</PackageProjectUrl>
     <RepositoryType>git</RepositoryType>
-    <RepositoryUrl>https://gitee.com/ccnetcore/Yi</RepositoryUrl>
-    <PackageTags>abp;yi</PackageTags>
+    <RepositoryUrl>https://github.com/SharpFort/SharpFort.Tool</RepositoryUrl>
+    <PackageTags>abp;sharpfort;cli;scaffolding</PackageTags>
     <PackAsTool>True</PackAsTool>
-    <ToolCommandName>yi-abp</ToolCommandName>
+    <ToolCommandName>sharpfort</ToolCommandName>
     <PackageOutputPath>./nupkg</PackageOutputPath>
     <PackageIcon>logo.png</PackageIcon>
     <PackageReadmeFile>readme.md</PackageReadmeFile>

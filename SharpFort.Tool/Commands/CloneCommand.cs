@@ -11,7 +11,7 @@ namespace SharpFort.Tool.Commands
 {
     public class CloneCommand : ICommand
     {
-        private const string CloneAddress= "https://gitee.com/ccnetcore/Yi";
+        private const string CloneAddress= "https://github.com/SharpFort/SharpFort.Tool";
 
         
         public string Command => "clone";
