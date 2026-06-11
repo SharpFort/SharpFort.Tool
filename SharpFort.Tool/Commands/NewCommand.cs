@@ -54,7 +54,7 @@ namespace SharpFort.Tool.Commands
                 else
                 {
                     moduleName = nameArg.Value;
-                    soure = soureOption.HasValue() ? soureOption.Value() : "default";
+                    soure = soureOption.HasValue() ? soureOption.Value() : "main";
                     path = pathOption.HasValue() ? pathOption.Value() : "./";
                     csf = csfOption.HasValue();
                     noCache = noCacheOption.HasValue();
@@ -79,7 +79,7 @@ namespace SharpFort.Tool.Commands
 
             Console.WriteLine("请选择模板:");
             for (int i = 0; i < templates.Count; i++)
-                Console.WriteLine($"  {i + 1}. {templates[i]} {(templates[i] == "default" ? "(基础模块)" : "")}");
+                Console.WriteLine($"  {i + 1}. {templates[i]} {(templates[i] == "main" ? "(基础模块)" : "")}");
 
             string? soure = null;
             while (soure == null)
@@ -168,7 +168,7 @@ namespace SharpFort.Tool.Commands
                 Console.WriteLine("  ------------------  ---------------------");
                 foreach (var name in list)
                 {
-                    var desc = name switch { "default" => "基础模块模板", _ => "自定义模板" };
+                    var desc = name switch { "main" => "基础模块模板", _ => "自定义模板" };
                     Console.WriteLine($"  {name,-18}  {desc}");
                 }
             }
