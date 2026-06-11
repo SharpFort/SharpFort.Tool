@@ -1,0 +1,195 @@
+name: Publish to NuGet
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'   # 版本标签触发，如 v1.0.0、v1.2.3
+  workflow_dispatch: # 支持手动触发
+    inputs:
+      version:
+        description: '发布版本号（如 1.0.0），不填则从 tag 提取'
+        required: false
+        type: string
+
+env:
+  DOTNET_SKIP_FIRST_TIME_EXPERIENCE: true
+  DOTNET_CLI_TELEMETRY_OPTOUT: true
+  NUGET_PACKAGES: ${{ github.workspace }}/.nuget/packages
+
+permissions:
+  contents: write   # 创建 Release 并上传资产
+  packages: write   # 发布 NuGet 包
+
+jobs:
+  # ─────────────────────────────────────────────
+  # 阶段一：构建 & 测试
+  # ─────────────────────────────────────────────
+  build-and-test:
+    name: Build & Test
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0   # 完整历史用于版本计算
+
+      - name: Setup .NET 10
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: |
+            10.0.x
+
+      - name: Restore dependencies
+        run: dotnet restore
+
+      - name: Build (Release)
+        run: dotnet build --configuration Release --no-restore
+
+      - name: Run unit tests
+        run: dotnet test SharpFort.Tool.Tests/SharpFort.Tool.Tests.csproj \
+             --configuration Release --no-build --verbosity normal \
+             --logger "trx;LogFileName=test-results.trx"
+
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-results
+          path: '**/*.trx'
+
+  # ─────────────────────────────────────────────
+  # 阶段二：打包 & 发布 NuGet
+  # ─────────────────────────────────────────────
+  publish:
+    name: Publish to NuGet
+    needs: build-and-test
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup .NET 10
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+
+      # ── 版本号提取 ──────────────────────────────
+      - name: Extract version
+        id: get_version
+        run: |
+          if [ "${{ github.event_name }}" == "workflow_dispatch" ] && [ -n "${{ github.event.inputs.version }}" ]; then
+            VERSION="${{ github.event.inputs.version }}"
+          else
+            VERSION=${GITHUB_REF#refs/tags/v}
+          fi
+          echo "VERSION=$VERSION" >> $GITHUB_OUTPUT
+          echo "📦 Publishing version: $VERSION"
+
+      # ── 构建 & 打包 ──────────────────────────────
+      - name: Restore dependencies
+        run: dotnet restore
+
+      - name: Pack NuGet package
+        run: |
+          dotnet pack SharpFort.Tool/SharpFort.Tool.csproj \
+            --configuration Release --no-restore \
+            -p:PackageVersion=${{ steps.get_version.outputs.VERSION }} \
+            --output ./artifacts
+
+      - name: Verify package contents
+        run: |
+          echo "📦 生成的包文件："
+          ls -lh ./artifacts/*.nupkg 2>/dev/null || echo "(无 .nupkg)"
+          ls -lh ./artifacts/*.snupkg 2>/dev/null || echo "(无 .snupkg)"
+
+      # ── 发布到 NuGet.org ──────────────────────────
+      - name: Publish to NuGet.org
+        run: |
+          dotnet nuget push ./artifacts/*.nupkg \
+            --api-key ${{ secrets.NUGET_API_KEY }} \
+            --source https://api.nuget.org/v3/index.json \
+            --skip-duplicate
+        env:
+          NUGET_API_KEY: ${{ secrets.NUGET_API_KEY }}
+
+      # ── 上传 CI 资产 ──────────────────────────────
+      - name: Upload NuGet package artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: nuget-packages
+          path: ./artifacts/*.nupkg
+
+      - name: Upload symbol package artifact
+        if: hashFiles('./artifacts/*.snupkg') != ''
+        uses: actions/upload-artifact@v4
+        with:
+          name: symbol-packages
+          path: ./artifacts/*.snupkg
+
+      # ── 生成 Release Notes ────────────────────────
+      - name: Generate Release Notes
+        id: generate_notes
+        if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/')
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          TAG_NAME=${GITHUB_REF#refs/tags/}
+          NOTES_JSON=$(gh api --method POST \
+            -H "Accept: application/vnd.github+json" \
+            /repos/${{ github.repository }}/releases/generate-notes \
+            -f tag_name=$TAG_NAME)
+          NOTES_BODY=$(echo "$NOTES_JSON" | jq -r .body)
+          {
+            echo "RELEASE_NOTES<<EOF"
+            echo "$NOTES_BODY"
+            echo "EOF"
+          } >> $GITHUB_OUTPUT
+
+      # ── 创建 GitHub Release ───────────────────────
+      - name: Create GitHub Release
+        if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            ./artifacts/*.nupkg
+            ./artifacts/*.snupkg
+          generate_release_notes: true
+          draft: false
+          prerelease: false
+          body: |
+            ## 🛠️ SharpFort.Tool CLI
+
+            SharpFort 框架配套 CLI 脚手架工具，基于 .NET 10。
+
+            ### 安装
+
+            ```bash
+            dotnet tool install --global SharpFort.Tool --version ${{ steps.get_version.outputs.VERSION }}
+            ```
+
+            更新已有安装：
+
+            ```bash
+            dotnet tool update --global SharpFort.Tool --version ${{ steps.get_version.outputs.VERSION }}
+            ```
+
+            ### 命令一览
+
+            | 命令 | 说明 |
+            |------|------|
+            | `sharpfort new [name]` | 创建模块（支持交互模式） |
+            | `sharpfort new list` | 列出可用模板 |
+            | `sharpfort clone [name]` | 克隆框架（GitHub/Gitee 双源） |
+            | `sharpfort init` | 首次设置向导 |
+            | `sharpfort doctor` | 环境诊断 |
+            | `sharpfort clear` | 清理 bin/obj 编译产物 |
+
+            ---
+
+            ${{ steps.generate_notes.outputs.RELEASE_NOTES }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
