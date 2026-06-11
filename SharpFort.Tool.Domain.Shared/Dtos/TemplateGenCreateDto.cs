@@ -27,6 +27,7 @@ namespace SharpFort.Tool.Domain.Shared.Dtos
         /// 数据库提供者
         /// </summary>
         public DbmsEnum Dbms { get; set; }
+        public bool NoCache { get; set; }
 
 
         /// <summary>

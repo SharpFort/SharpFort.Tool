@@ -34,6 +34,7 @@ namespace SharpFort.Tool.Commands
             var csfOption = application.Option("-csf", "是否创建解决方案文件夹", CommandOptionType.NoValue);
             
             var soureOption = application.Option("-s|--soure", "模板来源，gitee模板库分支名称: 默认值`default`",
+            var noCacheOption = application.Option("-nc|--no-cache", "跳过缓存，强制重新下载模板", CommandOptionType.NoValue);
                 CommandOptionType.SingleValue);
             
             var dbmsOption = application.Option("-dbms|--dataBaseMs", "数据库类型，支持目前主流数据库",
@@ -87,6 +88,7 @@ namespace SharpFort.Tool.Commands
                 byte[] fileByteArray;
 
                 var soure= soureOption.HasValue() ? soureOption.Value() : "default";
+                var noCache = noCacheOption.HasValue();
                 
                 var templateType = templateTypeOption.HasValue() ? templateTypeOption.Value() : "module";
                 if (templateType == "module")
@@ -95,7 +97,7 @@ namespace SharpFort.Tool.Commands
                     fileByteArray = (_templateGenService.CreateModuleAsync(new TemplateGenCreateInputDto
                     {
                         Name = moduleNameArgument.Value,
-                        ModuleSoure = soure
+                        ModuleSoure = soure, NoCache = noCache
                     }).Result);
                 }
                 else

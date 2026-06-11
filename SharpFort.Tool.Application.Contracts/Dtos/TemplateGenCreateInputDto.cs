@@ -18,6 +18,7 @@ namespace SharpFort.Tool.Application.Contracts.Dtos
         /// 数据库提供者
         /// </summary>
         public DbmsEnum Dbms { get; set; }
+        public bool NoCache { get; set; }
 
         /// <summary>
         /// 需要替换的字符串内容

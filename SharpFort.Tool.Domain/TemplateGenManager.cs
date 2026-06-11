@@ -1,154 +1,197 @@
-﻿using System;
-using System.Collections.Generic;
 using System.IO.Compression;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+using System.Text.Json;
 using Microsoft.Extensions.Options;
 using Volo.Abp.DependencyInjection;
 using SharpFort.Tool.Domain.Shared.Dtos;
 using SharpFort.Tool.Domain.Shared.Options;
 
-namespace SharpFort.Tool.Domain
+namespace SharpFort.Tool.Domain;
+
+public class TemplateGenManager : ITransientDependency
 {
-    public class TemplateGenManager : ITransientDependency
+    private readonly ToolOptions _toolOptions;
+    private readonly TemplateRepoManager _repoManager;
+
+    public TemplateGenManager(
+        IOptionsMonitor<ToolOptions> toolOptions,
+        TemplateRepoManager repoManager)
     {
-        private readonly ToolOptions _toolOptions;
-        private readonly GiteeManager _giteeManager;
+        _repoManager = repoManager;
+        _toolOptions = toolOptions.CurrentValue;
+    }
 
-        public TemplateGenManager(IOptionsMonitor<ToolOptions> toolOptions, GiteeManager giteeManager)
+    // ==================== 缓存相关 ====================
+
+    private string GetCacheDir()
+    {
+        var config = new ConfigManager().GetConfig();
+        return config.Tool.CacheDirPath;
+    }
+
+    private string GetCachePath(string branch) =>
+        Path.Combine(GetCacheDir(), $"{branch}.zip");
+
+    private string GetMetaPath(string branch) =>
+        Path.Combine(GetCacheDir(), $"{branch}.meta.json");
+
+    private CacheMeta? ReadCacheMeta(string branch)
+    {
+        var metaPath = GetMetaPath(branch);
+        if (!File.Exists(metaPath)) return null;
+        var json = File.ReadAllText(metaPath);
+        return JsonSerializer.Deserialize<CacheMeta>(json);
+    }
+
+    private void WriteCacheMeta(string branch, string? etag)
+    {
+        var meta = new CacheMeta
         {
-            _giteeManager = giteeManager;
-            _toolOptions = toolOptions.CurrentValue;
+            Branch = branch,
+            DownloadedAt = DateTime.UtcNow,
+            ETag = etag
+        };
+        var json = JsonSerializer.Serialize(meta);
+        File.WriteAllText(GetMetaPath(branch), json);
+    }
+
+    // ==================== 模板获取 ====================
+
+    /// <summary>
+    /// 获取模板流 — 优先缓存，支持 ETag 增量更新
+    /// </summary>
+    private async Task<Stream> GetTemplateStreamAsync(string branch, bool noCache = false)
+    {
+        var cachePath = GetCachePath(branch);
+
+        if (!noCache && File.Exists(cachePath))
+        {
+            var meta = ReadCacheMeta(branch);
+            if (meta?.ETag != null)
+            {
+                // ETag 条件检查
+                bool hasUpdate = await _repoManager.HasUpdateAsync(branch, meta.ETag);
+                if (!hasUpdate)
+                {
+                    // 无更新，用缓存，只更新时间戳
+                    WriteCacheMeta(branch, meta.ETag);
+                    return File.OpenRead(cachePath);
+                }
+            }
         }
 
-        public async Task<string> CreateTemplateAsync(TemplateGenCreateDto input)
+        // 下载新版本
+        var (stream, etag) = await _repoManager.DownLoadFileAsync(branch);
+
+        // 保存到缓存
+        Directory.CreateDirectory(GetCacheDir());
+        using (var fs = new FileStream(cachePath, FileMode.Create))
         {
-            //这里判断gitee上是否有这个分支
-            if (!await _giteeManager.IsExsitBranchAsync(input.GiteeRef))
-            {
-                throw new UserFriendlyException($"Gitee分支未找到{input.GiteeRef}，请检查,[{input.GiteeRef}]分支是否存在");
-            }
+            await stream.CopyToAsync(fs);
+        }
+        WriteCacheMeta(branch, etag);
 
-            if (string.IsNullOrEmpty(_toolOptions.TempDirPath))
-            {
-                throw new UserFriendlyException($"临时目录路径无法找到，请检查,[{_toolOptions.TempDirPath}]路径");
-            }
+        return File.OpenRead(cachePath);
+    }
 
-            var id = Guid.NewGuid().ToString("N");
-            var tempFileDirPath = Path.Combine(_toolOptions.TempDirPath, $"{id}");
-            if (!Directory.Exists(tempFileDirPath))
-            {
-                Directory.CreateDirectory(tempFileDirPath);
-            }
+    // ==================== 模板生成 ====================
 
+    public async Task<string> CreateTemplateAsync(TemplateGenCreateDto input)
+    {
+        if (!await _repoManager.IsExsitBranchAsync(input.GiteeRef))
+            throw new UserFriendlyException($"分支未找到 [{input.GiteeRef}]，请检查分支是否存在");
 
-            //下载的模板存放文件路径
-            var downloadPath = Path.Combine(_toolOptions.TempDirPath, "download");
-            if (!Directory.Exists(downloadPath))
-            {
-                Directory.CreateDirectory(downloadPath);
-            }
+        if (string.IsNullOrEmpty(_toolOptions.TempDirPath))
+            throw new UserFriendlyException($"临时目录路径未配置");
 
-            var downloadFilePath = Path.Combine(downloadPath, $"{id}.zip");
-            var gitSteam = await _giteeManager.DownLoadFileAsync(input.GiteeRef);
-            using (FileStream fileStream = new FileStream(downloadFilePath, FileMode.Create, FileAccess.Write))
-            {
-                await gitSteam.CopyToAsync(fileStream);
-            }
+        var id = Guid.NewGuid().ToString("N");
+        var tempFileDirPath = Path.Combine(_toolOptions.TempDirPath, id);
+        Directory.CreateDirectory(tempFileDirPath);
 
-            //文件解压覆盖，将刚刚下载的模板，解压即可
-            ZipFile.ExtractToDirectory(downloadFilePath, tempFileDirPath, true);
-
-
-            //注意，这里下载的zip包，其实多了一层，我们进行操作的时候，要将操作目录进一步
-            var operPath = Directory.GetDirectories(tempFileDirPath)[0];
-            await ReplaceContentAsync(operPath, input.ReplaceStrData);
-            var tempFilePath = Path.Combine(_toolOptions.TempDirPath, $"{id}.zip");
-            ZipFile.CreateFromDirectory(operPath, tempFilePath);
-
-            //创建压缩包后删除临时目录
-            Directory.Delete(tempFileDirPath, true);
-            return tempFilePath;
+        // 获取模板流 (缓存 + ETag)
+        using var gitStream = await GetTemplateStreamAsync(input.GiteeRef, input.NoCache);
+        var downloadFilePath = Path.Combine(_toolOptions.TempDirPath, $"{id}.zip");
+        using (var fs = new FileStream(downloadFilePath, FileMode.Create))
+        {
+            await gitStream.CopyToAsync(fs);
         }
 
+        // 解压
+        ZipFile.ExtractToDirectory(downloadFilePath, tempFileDirPath, true);
+        File.Delete(downloadFilePath);
 
-        /// <summary>
-        /// 获取全部模板列表
-        /// </summary>
-        /// <returns></returns>
-        public async Task<List<string>> GetAllTemplatesAsync()
+        // zip 内多一层目录
+        var operPath = Directory.GetDirectories(tempFileDirPath)[0];
+
+        // 替换内容
+        await ReplaceContentAsync(operPath, input.ReplaceStrData);
+
+        // 重新打包
+        var tempFilePath = Path.Combine(_toolOptions.TempDirPath, $"{id}.zip");
+        ZipFile.CreateFromDirectory(operPath, tempFilePath);
+        Directory.Delete(tempFileDirPath, true);
+
+        return tempFilePath;
+    }
+
+    public async Task<List<string>> GetAllTemplatesAsync()
+    {
+        var refs = await _repoManager.GetAllBranchAsync();
+        refs.Remove("master");
+        refs.Remove("main");
+        return refs;
+    }
+
+    // ==================== 内容替换 ====================
+
+    private async Task ReplaceContentAsync(string rootDirectory, Dictionary<string, string> dic)
+    {
+        foreach (var entry in dic)
+            await ReplaceInDirectory(rootDirectory, entry.Key, entry.Value);
+
+        static async Task ReplaceInDirectory(string dirPath, string search, string replace)
         {
-            var refs = await _giteeManager.GetAllBranchAsync();
-
-            //移除主分支
-            refs.Remove("master");
-            return refs;
+            var newDirPath = await ReplaceInFiles(dirPath, search, replace);
+            foreach (string subDir in Directory.GetDirectories(newDirPath))
+                await ReplaceInDirectory(subDir, search, replace);
         }
 
-        /// <summary>
-        /// 替换内容,key为要替换的内容，value为替换成的内容
-        /// </summary>
-        /// <returns></returns>
-        private async Task ReplaceContentAsync(string rootDirectory, Dictionary<string, string> dic)
+        static async Task<string> ReplaceInFiles(string dirPath, string search, string replace)
         {
-            foreach (var dicEntry in dic)
+            string dirName = new DirectoryInfo(dirPath).Name;
+            string newDirName = dirName.Replace(search, replace);
+            if (dirName != newDirName)
             {
-                await ReplaceInDirectory(rootDirectory, dicEntry.Key, dicEntry.Value);
+                string parent = Path.GetDirectoryName(dirPath)!;
+                string newPath = Path.Combine(parent, newDirName);
+                Directory.Move(dirPath, newPath);
+                dirPath = newPath;
             }
 
-            //替换目录名
-            static async Task ReplaceInDirectory(string directoryPath, string searchString, string replaceString)
+            foreach (string file in Directory.GetFiles(dirPath))
             {
-                // 替换当前目录下的文件和文件夹名称
-                var newDirPath = await ReplaceInFiles(directoryPath, searchString, replaceString);
-
-                // 递归遍历子目录
-                string[] subDirectories = Directory.GetDirectories(newDirPath);
-                foreach (string subDirectory in subDirectories)
-                {
-                    await ReplaceInDirectory(subDirectory, searchString, replaceString);
-                }
+                string newFileName = file.Replace(search, replace);
+                if (file != newFileName)
+                    File.Move(file, newFileName);
             }
 
-            //替换文件名
-            static async Task<string> ReplaceInFiles(string directoryPath, string searchString, string replaceString)
+            foreach (string file in Directory.GetFiles(dirPath))
             {
-                // 替换目录名
-                string directoryName = new DirectoryInfo(directoryPath).Name;
-                string newDirectoryName = directoryName.Replace(searchString, replaceString);
-                if (directoryName != newDirectoryName)
-                {
-                    string parentDirectory = Path.GetDirectoryName(directoryPath);
-                    string newDirectoryPath = Path.Combine(parentDirectory, newDirectoryName);
-                    Directory.Move(directoryPath, newDirectoryPath);
-                    directoryPath = newDirectoryPath;
-                }
-
-
-                // 替换文件名
-                string[] files = Directory.GetFiles(directoryPath);
-                foreach (string file in files)
-                {
-                    string newFileName = file.Replace(searchString, replaceString);
-                    if (file != newFileName)
-                    {
-                        File.Move(file, newFileName);
-                    }
-                }
-
-                files = Directory.GetFiles(directoryPath);
-                // 替换文件内容
-                foreach (string file in files)
-                {
-                    string fileContent = await File.ReadAllTextAsync(file);
-                    string newFileContent = fileContent.Replace(searchString, replaceString);
-                    await File.WriteAllTextAsync(file, newFileContent);
-                }
-
-
-                return directoryPath;
+                string content = await File.ReadAllTextAsync(file);
+                string newContent = content.Replace(search, replace);
+                await File.WriteAllTextAsync(file, newContent);
             }
+
+            return dirPath;
         }
     }
+}
+
+/// <summary>
+/// 缓存元数据
+/// </summary>
+public class CacheMeta
+{
+    public string Branch { get; set; } = "";
+    public DateTime DownloadedAt { get; set; }
+    public string? ETag { get; set; }
 }
