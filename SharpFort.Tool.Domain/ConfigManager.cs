@@ -49,7 +49,7 @@ public class SharpFortConfig
 {
     public RepoConfig Repo { get; set; } = new();
     public ToolConfig Tool { get; set; } = new();
-    public string CloneAddress { get; set; } = "https://github.com/SharpFort/SharpFort.Tool";
+    public string CloneAddress { get; set; } = "https://github.com/SharpFort/SharpFort.Net";
     public string DefaultTemplateBranch { get; set; } = "main";
 
     public static SharpFortConfig CreateDefault() => new()
@@ -68,7 +68,7 @@ public class SharpFortConfig
             CacheDirPath = Path.Combine(
                 Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".sharpfort", "cache")
         },
-        CloneAddress = "https://github.com/SharpFort/SharpFort.Tool",
+        CloneAddress = "https://github.com/SharpFort/SharpFort.Net",
         DefaultTemplateBranch = "main"
     };
 }

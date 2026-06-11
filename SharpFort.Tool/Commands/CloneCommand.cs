@@ -15,7 +15,7 @@ namespace SharpFort.Tool.Commands
         }
 
         public string Command => "clone";
-        public string? Description => "克隆 SharpFort 框架源代码，需依赖 git";
+        public string? Description => "克隆 SharpFort.Net 框架源代码，需依赖 git";
 
         public void CommandLineApplication(CommandLineApplication application)
         {
