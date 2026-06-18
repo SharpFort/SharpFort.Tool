@@ -1,4 +1,4 @@
-﻿using System.Reflection;
+using System.Reflection;
 using Microsoft.Extensions.CommandLineUtils;
 using Volo.Abp.DependencyInjection;
 
@@ -19,7 +19,7 @@ namespace SharpFort.Tool
         private void InitCommand()
         {    
             Application.HelpOption("-h|--help");
-            Application.VersionOption("-v|--versions", Assembly.GetExecutingAssembly().GetName().Version.ToString());
+            Application.VersionOption("-v|--versions", Assembly.GetExecutingAssembly().GetName().Version?.ToString() ?? "1.0.0");
             foreach (var command in _commands)
             {
                 CommandLineApplication childrenCommandLineApplication = new CommandLineApplication(true)

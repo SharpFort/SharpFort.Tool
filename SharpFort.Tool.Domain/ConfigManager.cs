@@ -9,7 +9,7 @@ public class ConfigManager : ISingletonDependency
         Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".sharpfort");
     private static readonly string ConfigPath = Path.Combine(ConfigDir, "config.json");
 
-    private SharpFortConfig _config;
+    private SharpFortConfig _config = null!;
 
     public ConfigManager()
     {

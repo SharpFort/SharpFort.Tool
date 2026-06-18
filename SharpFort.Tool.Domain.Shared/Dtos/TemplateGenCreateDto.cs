@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -17,11 +17,11 @@ namespace SharpFort.Tool.Domain.Shared.Dtos
         /// <summary>
         /// 模块名称
         /// </summary>
-        public string Name { get; set; }
+        public string Name { get; set; } = string.Empty;
         /// <summary>
         /// 模块所属gitee分支
         /// </summary>
-        public string GiteeRef { get; set; }
+        public string GiteeRef { get; set; } = string.Empty;
 
         /// <summary>
         /// 数据库提供者
@@ -33,6 +33,6 @@ namespace SharpFort.Tool.Domain.Shared.Dtos
         /// <summary>
         /// 需要替换的字符串内容
         /// </summary>
-        public Dictionary<string, string> ReplaceStrData { get; set; }
+        public Dictionary<string, string> ReplaceStrData { get; set; } = new();
     }
 }

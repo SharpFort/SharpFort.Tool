@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -11,6 +11,6 @@ namespace SharpFort.Tool.Domain.Shared.Options
         /// <summary>
         /// 临时文件目录
         /// </summary>
-        public string TempDirPath { get; set; }
+        public string TempDirPath { get; set; } = string.Empty;
     }
 }
