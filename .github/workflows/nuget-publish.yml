@@ -64,6 +64,7 @@ jobs:
     name: Publish to NuGet
     needs: build-and-test
     runs-on: ubuntu-latest
+    environment: release
 
     steps:
       - name: Checkout code
