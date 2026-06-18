@@ -41,10 +41,10 @@ jobs:
             10.0.x
 
       - name: Restore dependencies
-        run: dotnet restore
+        run: dotnet restore SharpFort.Tool.Tests/SharpFort.Tool.Tests.csproj
 
       - name: Build (Release)
-        run: dotnet build --configuration Release --no-restore
+        run: dotnet build SharpFort.Tool.Tests/SharpFort.Tool.Tests.csproj --configuration Release --no-restore
 
       - name: Run unit tests
         run: dotnet test SharpFort.Tool.Tests/SharpFort.Tool.Tests.csproj \
@@ -91,7 +91,7 @@ jobs:
 
       # ── 构建 & 打包 ──────────────────────────────
       - name: Restore dependencies
-        run: dotnet restore
+        run: dotnet restore SharpFort.Tool/SharpFort.Tool.csproj
 
       - name: Pack NuGet package
         run: |
