@@ -47,9 +47,7 @@ jobs:
         run: dotnet build SharpFort.Tool.Tests/SharpFort.Tool.Tests.csproj --configuration Release --no-restore
 
       - name: Run unit tests
-        run: dotnet test SharpFort.Tool.Tests/SharpFort.Tool.Tests.csproj \
-             --configuration Release --no-build --verbosity normal \
-             --logger "trx;LogFileName=test-results.trx"
+        run: dotnet test SharpFort.Tool.Tests/SharpFort.Tool.Tests.csproj --configuration Release --no-build --verbosity normal --logger "trx;LogFileName=test-results.trx"
 
       - name: Upload test results
         if: always()
