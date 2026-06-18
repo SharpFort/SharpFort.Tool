@@ -19,6 +19,7 @@ env:
 permissions:
   contents: write   # 创建 Release 并上传资产
   packages: write   # 发布 NuGet 包
+  id-token: write   # OIDC 认证所必需
 
 jobs:
   # ─────────────────────────────────────────────
@@ -108,11 +109,9 @@ jobs:
       - name: Publish to NuGet.org
         run: |
           dotnet nuget push ./artifacts/*.nupkg \
-            --api-key ${{ secrets.NUGET_API_KEY }} \
+            --api-key dummy \
             --source https://api.nuget.org/v3/index.json \
             --skip-duplicate
-        env:
-          NUGET_API_KEY: ${{ secrets.NUGET_API_KEY }}
 
       # ── 上传 CI 资产 ──────────────────────────────
       - name: Upload NuGet package artifact
