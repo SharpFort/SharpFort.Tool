@@ -106,11 +106,18 @@ jobs:
           ls -lh ./artifacts/*.nupkg 2>/dev/null || echo "(无 .nupkg)"
           ls -lh ./artifacts/*.snupkg 2>/dev/null || echo "(无 .snupkg)"
 
+      # ── NuGet.org 登录 ───────────────────────────
+      - name: NuGet login
+        uses: NuGet/login@v1
+        id: login
+        with:
+          user: songshu
+
       # ── 发布到 NuGet.org ──────────────────────────
       - name: Publish to NuGet.org
         run: |
           dotnet nuget push ./artifacts/*.nupkg \
-            --api-key dummy \
+            --api-key ${{ steps.login.outputs.NUGET_API_KEY }} \
             --source https://api.nuget.org/v3/index.json \
             --skip-duplicate
 
