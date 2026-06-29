@@ -127,6 +127,9 @@ public class TemplateGenManager : ITransientDependency
         // 替换内容
         await ReplaceContentAsync(operPath, input.ReplaceStrData);
 
+        // 替换后目录名可能发生变更，重新获取解压后的真实目录路径
+        operPath = Directory.GetDirectories(tempFileDirPath)[0];
+
         // 重新打包
         var tempFilePath = Path.Combine(_toolOptions.TempDirPath, $"{id}.zip");
         ZipFile.CreateFromDirectory(operPath, tempFilePath);
@@ -148,8 +151,6 @@ public class TemplateGenManager : ITransientDependency
     public async Task<List<string>> GetAllTemplatesAsync()
     {
         var refs = await _repoManager.GetAllBranchAsync();
-        refs.Remove("master");
-        refs.Remove("main");
         return refs;
     }
 
@@ -180,8 +181,6 @@ public class TemplateGenManager : ITransientDependency
     public async Task<int> RefreshCacheAsync()
     {
         var branches = await _repoManager.GetAllBranchAsync();
-        branches.Remove("master");
-        branches.Remove("main");
 
         int refreshed = 0;
         foreach (var branch in branches)

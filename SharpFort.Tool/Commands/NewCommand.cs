@@ -39,7 +39,7 @@ namespace SharpFort.Tool.Commands
                 {
                     if (refreshOpt.HasValue()) { RefreshCache(); return 0; }
                     if (clearOpt.HasValue()) { ClearCache(); return 0; }
-                    if (branchOpt.HasValue()) { PreviewTemplate(branchOpt.Value()).Wait(); return 0; }
+                    if (branchOpt.HasValue()) { PreviewTemplate(branchOpt.Value()).GetAwaiter().GetResult(); return 0; }
                     ListTemplates(detailOpt.HasValue());
                     return 0;
                 });
@@ -260,9 +260,10 @@ namespace SharpFort.Tool.Commands
                 Console.WriteLine(new string('-', 50));
                 using var reader = new StreamReader(readme.Open());
                 var content = reader.ReadToEnd();
-                var lines = content.Split('\n').Take(20);
+                var allLines = content.Split('\n');
+                var lines = allLines.Take(20);
                 Console.WriteLine(string.Join(Environment.NewLine, lines));
-                if (reader.BaseStream.Length > lines.Sum(l => l.Length + 1))
+                if (allLines.Length > 20)
                     Console.WriteLine("...(更多内容请在模板仓库查看)");
             }
         }

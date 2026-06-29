@@ -19,7 +19,13 @@ namespace SharpFort.Tool
         private void InitCommand()
         {    
             Application.HelpOption("-h|--help");
-            Application.VersionOption("-v|--versions", Assembly.GetExecutingAssembly().GetName().Version?.ToString() ?? "1.0.0");
+            var asm = Assembly.GetExecutingAssembly();
+            var version = asm.GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion
+                          ?? asm.GetName().Version?.ToString()
+                          ?? "1.0.0";
+            if (version.Contains('+')) version = version.Split('+')[0];
+
+            Application.VersionOption("-v|--versions", version);
             foreach (var command in _commands)
             {
                 CommandLineApplication childrenCommandLineApplication = new CommandLineApplication(true)

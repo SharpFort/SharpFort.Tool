@@ -7,7 +7,6 @@
 		<ImplicitUsings>enable</ImplicitUsings>
 		<Authors>SharpFort</Authors>
 		<LangVersion>latest</LangVersion>
-		<Version>1.0.0</Version>
 		<NoWarn>$(NoWarn);CS1591</NoWarn>
 	</PropertyGroup>
 </Project>

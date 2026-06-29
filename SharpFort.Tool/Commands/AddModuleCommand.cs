@@ -1,4 +1,4 @@
-﻿using Microsoft.Extensions.CommandLineUtils;
+using Microsoft.Extensions.CommandLineUtils;
 
 namespace SharpFort.Tool.Commands
 {
@@ -32,7 +32,7 @@ namespace SharpFort.Tool.Commands
                     slnPath = solutionOption.Value();
                 }
                 
-                CheckFirstSlnPath(slnPath);
+                slnPath = CheckFirstSlnPath(slnPath);
                 var dotnetSlnCommandPart = new List<string>() { "Application", "Application.Contracts", "Domain", "Domain.Shared", "SqlSugarCore" };
                 var paths = dotnetSlnCommandPart.Select(x => Path.Combine(modulePath, $"{moduleName}.{x}")).ToArray();
                 CheckPathExist(paths);
@@ -53,10 +53,18 @@ namespace SharpFort.Tool.Commands
         /// </summary>
         private string CheckFirstSlnPath(string slnPath)
         {
+            if (File.Exists(slnPath) && slnPath.EndsWith(".sln", StringComparison.OrdinalIgnoreCase))
+            {
+                return slnPath;
+            }
+            if (!Directory.Exists(slnPath))
+            {
+                throw new UserFriendlyException($"解决方案路径不存在：{slnPath}");
+            }
             string[] slnFiles = Directory.GetFiles(slnPath, "*.sln");
             if (slnFiles.Length > 1)
             {
-                throw new UserFriendlyException("当前目录包含多个sln解决方案，请只保留一个");
+                throw new UserFriendlyException("当前目录包含多个sln解决方案，请只保留一个或使用 -s 指定确切的 .sln 文件");
             }
             if (slnFiles.Length == 0)
             {

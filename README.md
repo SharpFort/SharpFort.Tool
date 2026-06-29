@@ -56,6 +56,8 @@ sharpfort new list
 | `sharpfort add-module <name>` | 添加已有模块到 .sln 解决方案 | `sharpfort add-module MyMod -s ../` |
 | `sharpfort clone` | 克隆 SharpFort.Net 框架源码 | `sharpfort clone` |
 | `sharpfort clear` | 递归清理 bin/obj 目录 | `sharpfort clear` |
+| `sharpfort doctor` | 检查并诊断本地环境与网络连通性 | `sharpfort doctor` |
+| `sharpfort init` | 初始化工具配置文件 (`~/.sharpfort/config.json`) | `sharpfort init` |
 | `sharpfort -h` | 查看帮助 | `sharpfort -h` |
 | `sharpfort -v` | 查看版本 | `sharpfort -v` |
 | `dotnet tool update -g sharpfort` | 更新工具到最新版本 | `dotnet tool update -g sharpfort` |
