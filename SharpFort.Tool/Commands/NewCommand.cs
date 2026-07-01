@@ -22,7 +22,8 @@ namespace SharpFort.Tool.Commands
             app.HelpOption("-h|--help");
             var pathOption = app.Option("-p|--path", "创建路径", CommandOptionType.SingleValue);
             var csfOption = app.Option("-csf", "创建解决方案文件夹", CommandOptionType.NoValue);
-            var soureOption = app.Option("-s|--soure", "模板分支名称", CommandOptionType.SingleValue);
+            var sourceOption = app.Option("-s|--source", "模板分支名称", CommandOptionType.SingleValue);
+            var forceOption = app.Option("-f|--force", "强制覆盖已存在的文件", CommandOptionType.NoValue);
             var noCacheOption = app.Option("-nc|--no-cache", "强制重新下载", CommandOptionType.NoValue);
             var nameArg = app.Argument("moduleName", "模块名（留空进入交互模式）");
 
@@ -48,29 +49,31 @@ namespace SharpFort.Tool.Commands
             // 主命令
             app.OnExecute(() =>
             {
-                string moduleName, soure, path;
+                string moduleName, source, path;
                 bool csf, noCache;
+                bool force = forceOption.HasValue();
 
                 if (string.IsNullOrEmpty(nameArg.Value))
                 {
                     var interactive = RunInteractive();
                     if (interactive == null) return 1;
-                    (moduleName, soure, path, csf, noCache) = interactive.Value;
+                    (moduleName, source, path, csf, noCache) = interactive.Value;
+                    force = false;
                 }
                 else
                 {
                     moduleName = nameArg.Value;
-                    soure = soureOption.HasValue() ? soureOption.Value() : "main";
+                    source = sourceOption.HasValue() ? sourceOption.Value() : "main";
                     path = pathOption.HasValue() ? pathOption.Value() : "./";
                     csf = csfOption.HasValue();
                     noCache = noCacheOption.HasValue();
                 }
-                return GenerateModule(moduleName, soure, path, csf, noCache);
+                return GenerateModule(moduleName, source, path, csf, noCache, force);
             });
         }
 
         // ===== 交互模式 =====
-        private (string name, string soure, string path, bool csf, bool noCache)? RunInteractive()
+        private (string name, string source, string path, bool csf, bool noCache)? RunInteractive()
         {
             Console.WriteLine();
             Console.WriteLine("=== SharpFort 模块生成向导 ===");
@@ -87,14 +90,14 @@ namespace SharpFort.Tool.Commands
             for (int i = 0; i < templates.Count; i++)
                 Console.WriteLine($"  {i + 1}. {templates[i]} {(templates[i] == "main" ? "(基础模块)" : "")}");
 
-            string? soure = null;
-            while (soure == null)
+            string? source = null;
+            while (source == null)
             {
                 Console.Write($"输入序号 [1-{templates.Count}] (默认 1): ");
                 var input = Console.ReadLine();
-                if (string.IsNullOrEmpty(input)) soure = templates[0];
+                if (string.IsNullOrEmpty(input)) source = templates[0];
                 else if (int.TryParse(input, out int idx) && idx >= 1 && idx <= templates.Count)
-                    soure = templates[idx - 1];
+                    source = templates[idx - 1];
                 else Console.WriteLine("无效输入，请重试");
             }
 
@@ -116,7 +119,7 @@ namespace SharpFort.Tool.Commands
 
             Console.WriteLine();
             Console.WriteLine($"即将创建:");
-            Console.WriteLine($"  模板:   {soure}");
+            Console.WriteLine($"  模板:   {source}");
             Console.WriteLine($"  名称:   {moduleName}");
             Console.WriteLine($"  路径:   {path}");
             Console.WriteLine($"  文件夹: {(csf ? "是" : "否")}");
@@ -124,23 +127,33 @@ namespace SharpFort.Tool.Commands
             var confirm = Console.ReadLine()?.Trim().ToLower();
             if (confirm == "n" || confirm == "no") { Console.WriteLine("已取消"); return null; }
 
-            return (moduleName, soure, path, csf, false);
+            return (moduleName, source, path, csf, false);
         }
 
         // ===== 生成模块 =====
-        private int GenerateModule(string moduleName, string soure, string path, bool csf, bool noCache)
+        private int GenerateModule(string moduleName, string source, string path, bool csf, bool noCache, bool force = false)
         {
-            Console.WriteLine($"正在从 [{soure}] 模板生成 [{moduleName}]...");
+            Console.WriteLine($"正在从 [{source}] 模板生成 [{moduleName}]...");
 
             byte[] fileByteArray = _templateGenService.CreateModuleAsync(
-                new TemplateGenCreateInputDto { Name = moduleName, ModuleSoure = soure, NoCache = noCache }
+                new TemplateGenCreateInputDto { Name = moduleName, ModuleSource = source, NoCache = noCache }
             ).GetAwaiter().GetResult();
 
             var id = Guid.NewGuid().ToString("N");
+            if (!Directory.Exists(path))
+            {
+                Directory.CreateDirectory(path);
+            }
             var zipPath = Path.Combine(path, $"{id}.zip");
             File.WriteAllBytes(zipPath, fileByteArray);
 
-            var unzipDirPath = "./";
+            /*
+             * 修复: 使用 CLI 传入的 -p/--path 参数作为解压目标目录。
+             * 原代码硬编码为 "./"，导致 path 参数被忽略，模块始终生成到当前工作目录。
+             * 当 csf=true 时，下层 if 块会通过 Path.Combine(path, dirName) 覆盖此值。
+             * 当 csf=false 时，模块文件直接解压到用户指定的 path 目录。
+             */
+            var unzipDirPath = path;
             if (csf)
             {
                 var dirName = moduleName.ToLower().Replace(".", "-");
@@ -150,7 +163,28 @@ namespace SharpFort.Tool.Commands
                 Directory.CreateDirectory(unzipDirPath);
             }
 
-            ZipFile.ExtractToDirectory(zipPath, unzipDirPath);
+            /*
+             * 修复: 解压前检查目标目录是否已有内容。
+             * 避免用户误操作覆盖已有模块文件。
+             * 使用 --force 可跳过此检查。
+             */
+            if (!force)
+            {
+                // 非 csf 模式: 检查 path 目录下是否有与模块同名的子目录
+                // csf 模式: csf 已在上面创建目录并检查了存在性
+                if (!csf && Directory.Exists(unzipDirPath))
+                {
+                    var existingFiles = Directory.GetFileSystemEntries(unzipDirPath).Length;
+                    if (existingFiles > 0)
+                    {
+                        throw new UserFriendlyException(
+                            $"目标目录 [{Path.GetFullPath(unzipDirPath)}] 已包含 {existingFiles} 个文件。" +
+                            Environment.NewLine + "请清空目录后重试，或使用 --force 强制覆盖。");
+                    }
+                }
+            }
+
+            ZipFile.ExtractToDirectory(zipPath, unzipDirPath, overwriteFiles: true);
             File.Delete(zipPath);
 
             Console.WriteLine($"模块 [{moduleName}] 已生成到 {Path.GetFullPath(unzipDirPath)}");

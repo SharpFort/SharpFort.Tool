@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -31,7 +31,7 @@ namespace SharpFort.Tool.Application
 
             // 模块类型，就是分支小写
             var input = moduleCreateInputDto.Adapt<TemplateGenCreateDto>();
-            input.SetTemplateGiteeRef(moduleCreateInputDto.ModuleSoure);
+            input.SetTemplateGiteeRef(moduleCreateInputDto.ModuleSource);
 
             var filePath = await _templateGenManager.CreateTemplateAsync(input);
 

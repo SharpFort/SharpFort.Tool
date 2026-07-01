@@ -10,7 +10,7 @@ SharpFort 框架配套 CLI 脚手架工具。基于 .NET 8 + ABP Framework，从
 ## 安装
 
 ```bash
-dotnet tool install -g sharpfort
+dotnet tool install -g sharpfort.tool
 ```
 
 ## 快速开始
@@ -60,13 +60,13 @@ sharpfort new list
 | `sharpfort init` | 初始化工具配置文件 (`~/.sharpfort/config.json`) | `sharpfort init` |
 | `sharpfort -h` | 查看帮助 | `sharpfort -h` |
 | `sharpfort -v` | 查看版本 | `sharpfort -v` |
-| `dotnet tool update -g sharpfort` | 更新工具到最新版本 | `dotnet tool update -g sharpfort` |
+| `dotnet tool update -g sharpfort.tool` | 更新工具到最新版本 | `dotnet tool update -g sharpfort.tool` |
 
 ### 选项参考
 
 | 选项 | 全名 | 适用命令 | 说明 | 默认值 |
 |------|------|:--:|------|:--:|
-| `-s` | `--soure` | `new` | 模板分支名称 | `main` |
+| `-s` | `--source` | `new` | 模板分支名称 | `main` |
 | `-p` | `--path` | `new` | 创建路径 | `./` |
 | `-csf` | — | `new` | 创建解决方案文件夹 | 否 |
 | `-nc` | `--no-cache` | `new` | 跳过缓存 | 否 |
