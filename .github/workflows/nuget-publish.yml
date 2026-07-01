@@ -1,13 +1,13 @@
-name: Publish to NuGet
+﻿name: Publish to NuGet
 
 on:
   push:
     tags:
-      - 'v0.9.2'   # 版本标签触发，如 v1.0.0、v1.2.3
-  workflow_dispatch: # 支持手动触发
+      - 'v0.9.2'   # 鐗堟湰鏍囩瑙﹀彂锛屽 v1.0.0銆乿1.2.3
+  workflow_dispatch: # 鏀寔鎵嬪姩瑙﹀彂
     inputs:
       version:
-        description: '发布版本号（如 1.0.0），不填则从 tag 提取'
+        description: '鍙戝竷鐗堟湰鍙凤紙濡?1.0.0锛夛紝涓嶅～鍒欎粠 tag 鎻愬彇'
         required: false
         type: string
 
@@ -17,14 +17,14 @@ env:
   NUGET_PACKAGES: ${{ github.workspace }}/.nuget/packages
 
 permissions:
-  contents: write   # 创建 Release 并上传资产
-  packages: write   # 发布 NuGet 包
-  id-token: write   # OIDC 认证所必需
+  contents: write   # 鍒涘缓 Release 骞朵笂浼犺祫浜?
+  packages: write   # 鍙戝竷 NuGet 鍖?
+  id-token: write   # OIDC 璁よ瘉鎵€蹇呴渶
 
 jobs:
-  # ─────────────────────────────────────────────
-  # 阶段一：构建 & 测试
-  # ─────────────────────────────────────────────
+  # 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
+  # 闃舵涓€锛氭瀯寤?& 娴嬭瘯
+  # 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
   build-and-test:
     name: Build & Test
     runs-on: ubuntu-latest
@@ -33,7 +33,7 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
         with:
-          fetch-depth: 0   # 完整历史用于版本计算
+          fetch-depth: 0   # 瀹屾暣鍘嗗彶鐢ㄤ簬鐗堟湰璁＄畻
 
       - name: Setup .NET 10
         uses: actions/setup-dotnet@v4
@@ -57,9 +57,9 @@ jobs:
           name: test-results
           path: '**/*.trx'
 
-  # ─────────────────────────────────────────────
-  # 阶段二：打包 & 发布 NuGet
-  # ─────────────────────────────────────────────
+  # 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
+  # 闃舵浜岋細鎵撳寘 & 鍙戝竷 NuGet
+  # 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
   publish:
     name: Publish to NuGet
     needs: build-and-test
@@ -77,19 +77,22 @@ jobs:
         with:
           dotnet-version: '10.0.x'
 
-      # ── 版本号提取 ──────────────────────────────
+      # 鈹€鈹€ 鐗堟湰鍙锋彁鍙?鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
       - name: Extract version
         id: get_version
         run: |
           if [ "${{ github.event_name }}" == "workflow_dispatch" ] && [ -n "${{ github.event.inputs.version }}" ]; then
             VERSION="${{ github.event.inputs.version }}"
-          else
+          elif [[ "$GITHUB_REF" == refs/tags/v* ]]; then
             VERSION=${GITHUB_REF#refs/tags/v}
+          else
+            VERSION=$(grep -oP '(?<=<Version>)[^<]+' version.props)
+            echo "⚠️ 未检测到 tag 或手动版本，使用 version.props 中的版本: $VERSION"
           fi
           echo "VERSION=$VERSION" >> $GITHUB_OUTPUT
-          echo "📦 Publishing version: $VERSION"
+          echo "馃摝 Publishing version: $VERSION"
 
-      # ── 构建 & 打包 ──────────────────────────────
+      # 鈹€鈹€ 鏋勫缓 & 鎵撳寘 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
       - name: Restore dependencies
         run: dotnet restore SharpFort.Tool/SharpFort.Tool.csproj
 
@@ -102,18 +105,18 @@ jobs:
 
       - name: Verify package contents
         run: |
-          echo "📦 生成的包文件："
-          ls -lh ./artifacts/*.nupkg 2>/dev/null || echo "(无 .nupkg)"
-          ls -lh ./artifacts/*.snupkg 2>/dev/null || echo "(无 .snupkg)"
+          echo "馃摝 鐢熸垚鐨勫寘鏂囦欢锛?
+          ls -lh ./artifacts/*.nupkg 2>/dev/null || echo "(鏃?.nupkg)"
+          ls -lh ./artifacts/*.snupkg 2>/dev/null || echo "(鏃?.snupkg)"
 
-      # ── NuGet.org 登录 ───────────────────────────
+      # 鈹€鈹€ NuGet.org 鐧诲綍 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
       - name: NuGet login
         uses: NuGet/login@v1
         id: login
         with:
           user: songshu
 
-      # ── 发布到 NuGet.org ──────────────────────────
+      # 鈹€鈹€ 鍙戝竷鍒?NuGet.org 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
       - name: Publish to NuGet.org
         run: |
           dotnet nuget push ./artifacts/*.nupkg \
@@ -121,7 +124,7 @@ jobs:
             --source https://api.nuget.org/v3/index.json \
             --skip-duplicate
 
-      # ── 上传 CI 资产 ──────────────────────────────
+      # 鈹€鈹€ 涓婁紶 CI 璧勪骇 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
       - name: Upload NuGet package artifact
         uses: actions/upload-artifact@v4
         with:
@@ -135,7 +138,7 @@ jobs:
           name: symbol-packages
           path: ./artifacts/*.snupkg
 
-      # ── 生成 Release Notes ────────────────────────
+      # 鈹€鈹€ 鐢熸垚 Release Notes 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
       - name: Generate Release Notes
         id: generate_notes
         if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/')
@@ -154,7 +157,7 @@ jobs:
             echo "EOF"
           } >> $GITHUB_OUTPUT
 
-      # ── 创建 GitHub Release ───────────────────────
+      # 鈹€鈹€ 鍒涘缓 GitHub Release 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
       - name: Create GitHub Release
         if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/')
         uses: softprops/action-gh-release@v2
@@ -166,32 +169,32 @@ jobs:
           draft: false
           prerelease: false
           body: |
-            ## 🛠️ SharpFort.Tool CLI
+            ## 馃洜锔?SharpFort.Tool CLI
 
-            SharpFort 框架配套 CLI 脚手架工具，基于 .NET 10。
+            SharpFort 妗嗘灦閰嶅 CLI 鑴氭墜鏋跺伐鍏凤紝鍩轰簬 .NET 10銆?
 
-            ### 安装
+            ### 瀹夎
 
             ```bash
             dotnet tool install --global SharpFort.Tool --version ${{ steps.get_version.outputs.VERSION }}
             ```
 
-            更新已有安装：
+            鏇存柊宸叉湁瀹夎锛?
 
             ```bash
             dotnet tool update --global SharpFort.Tool --version ${{ steps.get_version.outputs.VERSION }}
             ```
 
-            ### 命令一览
+            ### 鍛戒护涓€瑙?
 
-            | 命令 | 说明 |
+            | 鍛戒护 | 璇存槑 |
             |------|------|
-            | `sharpfort new [name]` | 创建模块（支持交互模式） |
-            | `sharpfort new list` | 列出可用模板 |
-            | `sharpfort clone [name]` | 克隆框架（GitHub/Gitee 双源） |
-            | `sharpfort init` | 首次设置向导 |
-            | `sharpfort doctor` | 环境诊断 |
-            | `sharpfort clear` | 清理 bin/obj 编译产物 |
+            | `sharpfort new [name]` | 鍒涘缓妯″潡锛堟敮鎸佷氦浜掓ā寮忥級 |
+            | `sharpfort new list` | 鍒楀嚭鍙敤妯℃澘 |
+            | `sharpfort clone [name]` | 鍏嬮殕妗嗘灦锛圙itHub/Gitee 鍙屾簮锛?|
+            | `sharpfort init` | 棣栨璁剧疆鍚戝 |
+            | `sharpfort doctor` | 鐜璇婃柇 |
+            | `sharpfort clear` | 娓呯悊 bin/obj 缂栬瘧浜х墿 |
 
             ---
 
