@@ -1,13 +1,13 @@
-﻿name: Publish to NuGet
+name: Publish to NuGet
 
 on:
   push:
     tags:
-      - 'v0.9.2'   # 鐗堟湰鏍囩瑙﹀彂锛屽 v1.0.0銆乿1.2.3
-  workflow_dispatch: # 鏀寔鎵嬪姩瑙﹀彂
+      - 'v*.*.*'   # Trigger on version tags like v1.0.0
+  workflow_dispatch:
     inputs:
       version:
-        description: '鍙戝竷鐗堟湰鍙凤紙濡?1.0.0锛夛紝涓嶅～鍒欎粠 tag 鎻愬彇'
+        description: 'Version to publish (e.g. 1.0.0), falls back to version.props if empty'
         required: false
         type: string
 
@@ -17,14 +17,14 @@ env:
   NUGET_PACKAGES: ${{ github.workspace }}/.nuget/packages
 
 permissions:
-  contents: write   # 鍒涘缓 Release 骞朵笂浼犺祫浜?
-  packages: write   # 鍙戝竷 NuGet 鍖?
-  id-token: write   # OIDC 璁よ瘉鎵€蹇呴渶
+  contents: write
+  packages: write
+  id-token: write
 
 jobs:
-  # 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
-  # 闃舵涓€锛氭瀯寤?& 娴嬭瘯
-  # 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
+  # ─────────────────────────────────────────────
+  # Stage 1: Build & Test
+  # ─────────────────────────────────────────────
   build-and-test:
     name: Build & Test
     runs-on: ubuntu-latest
@@ -33,7 +33,7 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
         with:
-          fetch-depth: 0   # 瀹屾暣鍘嗗彶鐢ㄤ簬鐗堟湰璁＄畻
+          fetch-depth: 0
 
       - name: Setup .NET 10
         uses: actions/setup-dotnet@v4
@@ -57,9 +57,9 @@ jobs:
           name: test-results
           path: '**/*.trx'
 
-  # 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
-  # 闃舵浜岋細鎵撳寘 & 鍙戝竷 NuGet
-  # 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
+  # ─────────────────────────────────────────────
+  # Stage 2: Pack & Publish
+  # ─────────────────────────────────────────────
   publish:
     name: Publish to NuGet
     needs: build-and-test
@@ -77,7 +77,7 @@ jobs:
         with:
           dotnet-version: '10.0.x'
 
-      # 鈹€鈹€ 鐗堟湰鍙锋彁鍙?鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
+      # ── Extract version ────────────────────────
       - name: Extract version
         id: get_version
         run: |
@@ -87,12 +87,12 @@ jobs:
             VERSION=${GITHUB_REF#refs/tags/v}
           else
             VERSION=$(grep -oP '(?<=<Version>)[^<]+' version.props)
-            echo "⚠️ 未检测到 tag 或手动版本，使用 version.props 中的版本: $VERSION"
+            echo "WARN: No tag or manual version, using version from version.props: $VERSION"
           fi
           echo "VERSION=$VERSION" >> $GITHUB_OUTPUT
-          echo "馃摝 Publishing version: $VERSION"
+          echo "Publishing version: $VERSION"
 
-      # 鈹€鈹€ 鏋勫缓 & 鎵撳寘 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
+      # ── Build & Pack ───────────────────────────
       - name: Restore dependencies
         run: dotnet restore SharpFort.Tool/SharpFort.Tool.csproj
 
@@ -105,18 +105,18 @@ jobs:
 
       - name: Verify package contents
         run: |
-          echo "馃摝 鐢熸垚鐨勫寘鏂囦欢锛?
-          ls -lh ./artifacts/*.nupkg 2>/dev/null || echo "(鏃?.nupkg)"
-          ls -lh ./artifacts/*.snupkg 2>/dev/null || echo "(鏃?.snupkg)"
+          echo "=== Generated packages ==="
+          ls -lh ./artifacts/*.nupkg 2>/dev/null || echo "(no .nupkg)"
+          ls -lh ./artifacts/*.snupkg 2>/dev/null || echo "(no .snupkg)"
 
-      # 鈹€鈹€ NuGet.org 鐧诲綍 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
+      # ── NuGet.org login ────────────────────────
       - name: NuGet login
         uses: NuGet/login@v1
         id: login
         with:
           user: songshu
 
-      # 鈹€鈹€ 鍙戝竷鍒?NuGet.org 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
+      # ── Publish to NuGet.org ───────────────────
       - name: Publish to NuGet.org
         run: |
           dotnet nuget push ./artifacts/*.nupkg \
@@ -124,7 +124,7 @@ jobs:
             --source https://api.nuget.org/v3/index.json \
             --skip-duplicate
 
-      # 鈹€鈹€ 涓婁紶 CI 璧勪骇 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
+      # ── Upload artifacts ───────────────────────
       - name: Upload NuGet package artifact
         uses: actions/upload-artifact@v4
         with:
@@ -138,7 +138,7 @@ jobs:
           name: symbol-packages
           path: ./artifacts/*.snupkg
 
-      # 鈹€鈹€ 鐢熸垚 Release Notes 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
+      # ── Generate Release Notes ─────────────────
       - name: Generate Release Notes
         id: generate_notes
         if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/')
@@ -157,7 +157,7 @@ jobs:
             echo "EOF"
           } >> $GITHUB_OUTPUT
 
-      # 鈹€鈹€ 鍒涘缓 GitHub Release 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
+      # ── Create GitHub Release ──────────────────
       - name: Create GitHub Release
         if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/')
         uses: softprops/action-gh-release@v2
@@ -169,32 +169,32 @@ jobs:
           draft: false
           prerelease: false
           body: |
-            ## 馃洜锔?SharpFort.Tool CLI
+            ## SharpFort.Tool CLI
 
-            SharpFort 妗嗘灦閰嶅 CLI 鑴氭墜鏋跺伐鍏凤紝鍩轰簬 .NET 10銆?
+            SharpFort CLI scaffolding tool, built on .NET 10.
 
-            ### 瀹夎
+            ### Install
 
             ```bash
             dotnet tool install --global SharpFort.Tool --version ${{ steps.get_version.outputs.VERSION }}
             ```
 
-            鏇存柊宸叉湁瀹夎锛?
+            Upgrade:
 
             ```bash
             dotnet tool update --global SharpFort.Tool --version ${{ steps.get_version.outputs.VERSION }}
             ```
 
-            ### 鍛戒护涓€瑙?
+            ### Commands
 
-            | 鍛戒护 | 璇存槑 |
+            | Command | Description |
             |------|------|
-            | `sharpfort new [name]` | 鍒涘缓妯″潡锛堟敮鎸佷氦浜掓ā寮忥級 |
-            | `sharpfort new list` | 鍒楀嚭鍙敤妯℃澘 |
-            | `sharpfort clone [name]` | 鍏嬮殕妗嗘灦锛圙itHub/Gitee 鍙屾簮锛?|
-            | `sharpfort init` | 棣栨璁剧疆鍚戝 |
-            | `sharpfort doctor` | 鐜璇婃柇 |
-            | `sharpfort clear` | 娓呯悊 bin/obj 缂栬瘧浜х墿 |
+            | `sharpfort new [name]` | Create module (interactive mode) |
+            | `sharpfort new list` | List available templates |
+            | `sharpfort clone [name]` | Clone framework (GitHub/Gitee) |
+            | `sharpfort init` | First-time setup wizard |
+            | `sharpfort doctor` | Environment diagnostics |
+            | `sharpfort clear` | Clean bin/obj artifacts |
 
             ---
 
