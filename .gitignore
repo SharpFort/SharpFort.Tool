@@ -8,6 +8,7 @@ obj/
 .vs/
 .idea/
 .DS_Store
+.agents/
 Thumbs.db
 **/appsettings.json
 !**/appsettings.Development.json
